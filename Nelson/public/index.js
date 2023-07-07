@@ -77,7 +77,6 @@ function setup() {
   usernameInput.hide();
 }
 function draw() {
-  //scale(0.5);
   //Define em que pagina estamos
   switch (scene) {
     case 1:
@@ -112,6 +111,10 @@ function draw() {
     socket.emit('emiteGanhou', playerName);
     scene = 5;
   };
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
 }
 
 function selecionarModoBingo() {
@@ -237,8 +240,10 @@ function page2() {
 //pagina do sorteador
 function page3() {
   background(bgImg);
+
+  
   socket.on('ganhou', ganhouJogo);
-  image(BingoTitulo, 100, 100);
+  image(BingoTitulo, 10, 10);
   image(Card, 100, 400);
   image(Card, 2000, 400);
   if (!gameStarted) {

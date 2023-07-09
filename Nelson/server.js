@@ -8,7 +8,11 @@ var io = require('socket.io')(server);
 var Player = require("./Player");
 var players = [];
 var numero;
+var problems = [];
 var sorteador=false;
+var modo;
+var tempos = [];
+
 
 console.log("http://localhost:3000");
 // chamar a função jogo Update
@@ -27,6 +31,11 @@ function newConnection(socket){
     console.log(players);
   }
 
+  socket.on('modo',mode);
+  function mode(data){
+    modo = data;
+  }
+
   //recebe se existe sorteador ou nao
   socket.on('sorteador',sorteadorEstado);
   sorteador=false;
@@ -42,6 +51,18 @@ function newConnection(socket){
     socket.on('emitBola',bola);
     function bola(data){
       numero=data;
+    }
+
+    socket.on('emitProblemas',problemas);
+    function problemas(data){
+      problems = data
+    }
+
+    socket.on('emitTempo',tempo);
+    function tempo(data){
+      tempos[0] = data[0]
+      tempos[1] = data[1]
+
     }
 
     //recebe se alguem ganhou o jogo
@@ -64,9 +85,16 @@ function newConnection(socket){
   //função para atualizar o jogo
   // manda a coordenada recebida e os players que estao conectados
   function jogoUpdate(){
-   io.emit('sorteadorEstado',sorteador);
-    io.emit('recebeBola',numero);
-    io.emit('players',players);
+    if (modo == 'bingo'){
+      io.emit('sorteadorEstado',sorteador);
+      io.emit('recebeBola',numero);
+      io.emit('players',players);
+    }else{
+      io.emit('sorteadorEstado',sorteador);
+      io.emit('recebeProblemas',problems)
+      io.emit('players',players);
+      io.emit('tempo',tempos)
+    }
   }
 
 

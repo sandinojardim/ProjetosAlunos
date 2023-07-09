@@ -11,11 +11,18 @@ var carta = false;
 var circle;
 var sorteador = false;
 var first = true;
+var modo;
 var modoProva = false;
 var modoBingoButtonVisible = false;
 var modoProvaButtonVisible = false;
 var i = 1;
 var gameStarted = false;
+var numProblemas = 0;
+var tempo;
+var startTime;
+var problemasProva = null;
+var certos = [];
+var errados = [];
 
 //Função para carregar a media
 function carregaMedia() {
@@ -49,6 +56,13 @@ function carregaMedia() {
 
   BingoTitulo = loadImage("media/BingoTitulo.png");
   Card = loadImage("media/Card.png");
+  CincoProblemas = loadImage("media/CincoProblemasButton.png")
+  CincoProblemasActive = loadImage("media/CincoProblemasActiveButton.png")
+  CincoProblemasSelected = loadImage("media/CincoProblemasSelectedButton.png")
+
+  DezSegundos = loadImage("media/DezSegundosButton.png")
+  DezSegundosActive = loadImage("media/DezSegundosActiveButton.png")
+  DezSegundosSelected = loadImage("media/DezSegundosSelectedButton.png")
 
   Logo = loadImage("media/LogoV1.png");
 }
@@ -77,6 +91,7 @@ function setup() {
   usernameInput.hide();
 }
 function draw() {
+  //scale(0.5);
   //Define em que pagina estamos
   switch (scene) {
     case 1:
@@ -102,6 +117,9 @@ function draw() {
     case 6:
       page6();
       break;
+    case 7:
+      page7(); //tempo esgotado
+      break;
     default:
       break;
   }
@@ -113,16 +131,14 @@ function draw() {
   };
 }
 
-function windowResized() {
-  resizeCanvas(windowWidth, windowHeight);
-}
-
 function selecionarModoBingo() {
   modoBingoButtonVisible = false;
   modoProvaButtonVisible = false;
   scene = 3;
   socket.on('players', recebePlayers);
   console.log('MODO BINGO');
+  mode = 'bingo';
+  socket.emit('modo',mode);
 }
 function selecionarModoProva() {
   modoBingoButtonVisible = false;
@@ -130,6 +146,9 @@ function selecionarModoProva() {
   scene = 6;
   socket.on('players', recebePlayers);
   console.log('MODO PROVA');
+  mode = 'prova';
+  modoProva = true
+  socket.emit('modo', mode);
 }
 //pagina Inicial
 function page1() {
@@ -224,6 +243,8 @@ function page1() {
 function estadoSorteador(data) {
   sorteador = data;
 }
+
+
 //pagina do introduzir nome
 function page2() {
   background(bgImg);
@@ -240,10 +261,8 @@ function page2() {
 //pagina do sorteador
 function page3() {
   background(bgImg);
-
-  
   socket.on('ganhou', ganhouJogo);
-  image(BingoTitulo, 10, 10);
+  image(BingoTitulo, 100, 100);
   image(Card, 100, 400);
   image(Card, 2000, 400);
   if (!gameStarted) {
@@ -289,92 +308,225 @@ function changeBG() {
       playerName = "Ninguem";
       contem = 5;
     }
-  }, 10000);
+  }, 5000);
 }
 //pagina do jogador
 function page4() {
+  
   //Cria um novo Circulo
-  circle = new Circle(Sor.coordenadas);
-  //Recebe a coordenada do servidor
-  socket.on('recebeBola', numeroBall);
-  //recebe se alguem ganhou o jogo
-  socket.on('ganhou', ganhouJogo);
-  background(bgImg);
-  image(BingoTitulo, 100, 100);
-  image(Card, 100, 400);
-  //chama a função para criar o cartao
-  for (var i = 0; i < Sor.players.length; i++) {
-    if (playerId == Sor.players[i].id && carta == false) {
-      p = Sor.players[i];
-      p.CriarCard(Sor.coordenadas);
-      carta = true;
+  if(modo == 'bingo'){
+    //console.log(modo)
+    circle = new Circle(Sor.coordenadas);
+    //Recebe a coordenada do servidor
+    socket.on('recebeBola', numeroBall);
+    //recebe se alguem ganhou o jogo
+    socket.on('ganhou', ganhouJogo);
+    background(bgImg);
+    image(BingoTitulo, 100, 100);
+    image(Card, 100, 400);
+    //chama a função para criar o cartao
+    for (var i = 0; i < Sor.players.length; i++) {
+      if (playerId == Sor.players[i].id && carta == false) {
+        p = Sor.players[i];
+        p.CriarCard(Sor.coordenadas);
+        carta = true;
+      }
     }
-  }
 
-  //desenha o cartao e as coordenadas dele
-  desenhar();
-  //desenha o circulo trigonometrico
-  circle.DesenhaCircle();
-  //desenha as linhas
-  for (var i = 0; i < lines.length; i++) {
-    if (lines[i] != null) {
-      stroke(0, 100, 0);
-      strokeWeight(4);
+    //desenha o cartao e as coordenadas dele
+    desenhar();
+    //desenha o circulo trigonometrico
+    circle.DesenhaCircle();
+    //desenha as linhas
+    for (var i = 0; i < lines.length; i++) {
+      if (lines[i] != null) {
+        stroke(0, 100, 0);
+        strokeWeight(4);
 
-      lines[i].display();
+        lines[i].display();
+      }
+
     }
+    if(mouseIsPressed){
+      mouseClicked()
+      scene=4
+    }
+  }else{//Modo Prova
+    socket.on('tempo',recebeTempos);
+    const currentTime = millis();
+    const elapsedTime = currentTime - startTime;
+    timeLeft = tempo - elapsedTime;
+    //alert(currentTime+' '+elapsedTime+' '+timeLeft+' '+tempo+' '+startTime)
+    if (timeLeft <= 0) {
+      // Time has ended, transition to page7
+      scene = 7;
+      return;
+    } 
+    background(bgImg);
+    image(BingoTitulo, 100, 100);
+    image(Card, 100, 400);
+
+    // Display the time remaining
+    const seconds = Math.ceil(timeLeft / 1000);
+    console.log(seconds);
+    textSize(60);
+    fill(255,255,255);
+    text("Time Left: " + seconds + "s", 1000, 400);
+    //Recebe a coordenada do servidor
+    socket.on('recebeProblemas', problemas);
+    circle = new Circle(Sor.coordenadasProva);
+    //recebe se alguem ganhou o jogo
+    socket.on('ganhou', ganhouJogo);
+    
+
+    //for (var i = 0; i < Sor.players.length; i++) {
+      if (problemasProva != null) {
+        p = Sor.players.get(playerId);
+        if(p.card.length == 0){
+          p.CriarCardProva(problemasProva);
+        }
+
+      }
+    //}
+    
+    //desenha o cartao e as coordenadas dele
+    desenharProva(Sor.coordenadasProva, circle);
+    //desenha o circulo trigonometrico
+    circle.DesenhaCircle(certos, errados);
+    //desenha as linhas
+    for (var i = 0; i < lines.length; i++) {
+      if (lines[i] != null) {
+        stroke(0, 100, 0);
+        strokeWeight(4);
+
+        lines[i].display();
+      }
+
+    }
+    // if(mouseIsPressed){
+    //   mouseClicked()
+    //   scene=4
+    // }
 
   }
 }
 function page6() {
-  //Cria um novo Circulo
-  circle = new Circle(Sor.coordenadas);
-  //Recebe a coordenada do servidor
-  socket.on('recebeBola', numeroBall);
-  //recebe se alguem ganhou o jogo
-  socket.on('ganhou', ganhouJogo);
   background(bgImg);
-  image(Cartaz, 100, 50, 526, 839);
-  image(circulo, width - 1000, 50, 958, 840);
-  //chama a função para criar o cartao
-  for (var i = 0; i < Sor.players.length; i++) {
-    if (playerId == Sor.players[i].id && carta == false) {
-      p = Sor.players[i];
-      p.CriarCard(Sor.coordenadas);
-      carta = true;
+  socket.on('ganhou', ganhouJogo);
+  image(BingoTitulo, 100, 100);
+  image(Card, 100, 400);
+  image(Card, 2000, 400);
+  image(CincoProblemas, 1000, 400);
+  image(DezSegundos, 1000, 600);
+  if (mouseX > 1000 && mouseX < 1668 && mouseY > 400 && mouseY < 452) {
+    image(CincoProblemasActive, 1000, 400);
+    if (mouseIsPressed) {
+      numProblemas = 5  
+      CincoProblemas = CincoProblemasSelected
+      //gameStarted = true;
+      //changeBG(); //alterar para receber parâmetros do professor
+    }
+  }
+  if (mouseX > 1000 && mouseX < 1668 && mouseY > 600 && mouseY < 652) {
+    image(DezSegundosActive, 1000, 600);
+    if (mouseIsPressed) {
+      tempo = 60000 //ms  
+      DezSegundos = DezSegundosSelected
+      //gameStarted = true;
+      //changeBG(); //alterar para receber parâmetros do professor
     }
   }
 
-  //desenha o cartao e as coordenadas dele
-  desenhar();
-  //desenha o circulo trigonometrico
-  circle.DesenhaCircle();
-  //desenha as linhas
-  for (var i = 0; i < lines.length; i++) {
-    if (lines[i] != null) {
-      stroke(0, 100, 0);
-      strokeWeight(2);
-
-      lines[i].display();
+  if (!gameStarted) {
+    image(Comecar, 100, 325);
+    if (mouseX > 100 && mouseX < 668 && mouseY > 325 && mouseY < 377) {
+      image(ComecarActive, 100, 325);
+      if(mouseIsPressed){
+        if (numProblemas != 0 && tempo != 0) {
+          gameStarted = true;
+          //startTime = millis();
+          changeBG(numProblemas, tempo);
+        } else {
+          alert("Deve selecionar primeiro o número de testes e o tempo.");
+        }
+      }
+      
     }
   }
-  for (var i = 0; i < lines.length; i++) {
-    if (circles[i] != null) {
-      stroke(0, 100, 0);
-      strokeWeight(2);
-
-      lines[i].display();
-    }
-  }
-
-  setInterval(() => {
-    if (i < 5) {
-      Sor.retiraCoordenada();
-      socket.emit('emitBola', Sor.coordenada);
-      i++;
-    }
-  }, 500);
+  textSize(48);
+  text("Valores Sorteados", 125, 465);
+  text("Jogadores", 2025, 465);
+  fill(255, 255, 255);
+  sorteador = true;
+  //manda para o servidor a informação que ja existe sorteador
+  socket.emit('sorteador', sorteador);
+  //chama a função para Desenhar  os PLayers da Class sorteador
+  Sor.DesenhaPlayers();
+  //chama a função para Desenhar as coordenadas da Class sorteador
+  Sor.DesenhaCoordenadasProva();
 }
+//função para retirar a coordenada e mandar para o servidor
+function changeBG() {
+  if (first) {
+    Sor.retiraCoordenada();
+    //manda para o servidor a coordenada retirada
+    socket.emit('emitBola', Sor.coordenada);
+    if (Sor.coordenada == null) {
+      playerName = "Ninguem";
+      contem = 5;
+    }
+  }
+  setInterval(() => {
+    first = false;
+    //chama a função retirar a coordenada da Class sorteador
+    Sor.retiraCoordenada();
+    //manda para o servidor a coordenada retirada
+    socket.emit('emitBola', Sor.coordenada);
+    if (Sor.coordenada == null) {
+      playerName = "Ninguem";
+      contem = 5;
+    }
+  }, 5000);
+}
+
+function changeBG(numProblemas, tempo){
+  Sor.retiraCoordenadas(numProblemas);
+  var infotempo = [];
+  infotempo.push(tempo);
+  infotempo.push(millis())
+  socket.emit('emitProblemas',Sor.coordenadasProva);
+  socket.emit('emitTempo',infotempo);
+}
+
+/*function changeBG(numProblemas, tempo) {
+  if (first) {
+    Sor.retiraCoordenada();
+    socket.emit('emitBola', Sor.coordenada);
+    if (Sor.coordenada == null) {
+      playerName = "Ninguem";
+      contem = 5;
+    }
+  }
+
+  var counter = 1;
+  var intervalID = setInterval(() => {
+    if (counter >= numProblemas) {
+      clearInterval(intervalID);
+      contem = 5;
+      return;
+    }
+
+    Sor.retiraCoordenada();
+    socket.emit('emitBola', Sor.coordenada);
+    if (Sor.coordenada == null) {
+      playerName = "Ninguem";
+      contem = 5;
+    }
+
+    counter++;
+  }, tempo);
+} //função para versão bingo/prova */
+
 //função para desenhar as coordenadas do cartao e a coordenada que saiu
 function desenhar() {
   if (p.card != null) {
@@ -392,19 +544,84 @@ function desenhar() {
   }
 }
 
+//função para desenhar as coordenadas do cartao e a coordenada que saiu
+var clickedCoordinate = null;
+function desenharProva(coordenadas, circle) {
+  var currentPlayer;
+  for (var i = 0; i < Sor.players.length; i++) {
+    if (playerId == Sor.players[i].id) {
+      currentPlayer = Sor.players[i];
+    }
+    
+  }
+  if (p.card != null) {
+    for (var i = 0; i < 5; i++) {
+      fill(255);
+      textSize(32);
+      text(p.card[i], 125, 550 + i * 45);
+
+      if (mouseIsPressed && mouseX > 125 && mouseX < 225 && mouseY > 550 + i * 45 - 32 && mouseY < 550 + i * 45) {
+        clickedCoordinate = p.card[i]; // Store the clicked coordinate
+        mouseIsPressed = false
+        // You can perform further actions with the clicked coordinate here
+      }
+      if (clickedCoordinate != null){
+        var angleClicked = Sor.coordenadaToAngle.get(clickedCoordinate)
+        // Check if a mouse click occurred within the circle area
+          if (mouseIsPressed && mouseX > width - 700 && mouseX < width - 300 && mouseY > height / 2 - 350 && mouseY < height / 2 + 350) {
+            // Calculate the angle of the clicked position
+            let angle = degrees(atan2(mouseY - height / 2, mouseX - (width - 500)));
+            if (angle < 0) {
+              angle += 360; // Adjust negative angles to positive values
+            }
+            angle = 360 - angle; // Reverse the direction of the angle
+
+            // Check if the clicked position matches any of the coordinates
+            
+              mouseIsPressed = false
+              if (round(angle) >= angleClicked - 2 && round(angle) <= angleClicked + 2) { //tolerance
+                // Student is correct
+                alert("Student is correct for coordinate: " + clickedCoordinate);
+                for (var j = 0; j < p.card.length; j++) {
+                  if(p.card[j] == clickedCoordinate){
+                    certos.push(angleClicked);
+                  }
+                }
+              }else{
+                for (var j = 0; j < p.card.length; j++) {
+                  if(p.card[j] == clickedCoordinate){
+                    errados.push(angleClicked);
+                  }
+                }
+              }
+            
+          }
+          fill(255);
+          textSize(32);
+          text(clickedCoordinate, width / 2, 550);
+        }
+      }
+
+      
+      
+  }
+
+}
+
 //função que recebe os Jogadores,Criar um novo array de "Player" e verificar que ja Existe esse player
 //pelo Id tambem remove o player do array se ele sair
 function recebePlayers(data) {
-  var removedPlayers = Sor.players.filter(p => data.findIndex(s => s.id == p.id));
+  var removedPlayers = Array.from(Sor.players.values()).filter(p => data.findIndex(s => s.id === p.id) === -1);
   for (let player of removedPlayers) {
     removePlayer(player.id);
   }
   for (var i = 0; i < data.length; i++) {
     var playersServer = data[i];
     if (!playerExiste(playersServer)) {
-      Sor.players.push(new Player(playersServer));
+      Sor.players.set(playersServer.id, new Player(playersServer));
     }
   }
+
 }
 //verificar que o Id do jogador Existe
 function playerExiste(playersServer) {
@@ -423,6 +640,17 @@ function removePlayer(playerId) {
 //Função que recebe a coordenada
 function numeroBall(data) {
   Sor.coordenada = data;
+}
+
+function problemas(data){
+  Sor.coordenadasProva = data
+  problemasProva = data
+
+}
+function recebeTempos(data){
+  tempo = data[0];
+  startTime = data[1];
+
 }
 //Função que recebe se alguem ganhou o Jogo
 function ganhouJogo(data) {
@@ -502,5 +730,15 @@ function page5() {
   stroke(0);
   text("Vencedor", width / 2 - 200, 200);
   text(playerName + " Ganhou", width / 2 - 400, 500);
+  button.hide();
+}
+function page7() {
+  background(bgImg);
+  image(circulo, width / 2 - 500, 50, 958, 840);
+  textSize(100);
+  fill(26, 34, 87);
+  stroke(0);
+  text("Tempo esgotado", width / 2 - 200, 200);
+  //text(playerName + " Ganhou", width / 2 - 400, 500);
   button.hide();
 }

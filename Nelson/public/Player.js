@@ -4,6 +4,9 @@ class Player{
         this.id = player.id;
         this.name = player.name;
         this.card=[];
+        this.cardProva = null;
+        this.certos = [];
+        this.errados = [];
         this.ballcard=null;
     }
 
@@ -18,6 +21,19 @@ class Player{
                 this.card.push(this.ballcard);
             }
         }
+
+    }
+
+    //Função que cria um cartao com 5 coordenadas dos problemas iguais para todos
+    CriarCardProva(coordenadas){
+        for (let coord of coordenadas){
+            this.card.push(coord)
+        }
+        
+
+    }
+
+    removeCoordenada(coordenada){
 
     }
 }

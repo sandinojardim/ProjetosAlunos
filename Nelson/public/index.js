@@ -371,7 +371,7 @@ function page4() {
     console.log(seconds);
     textSize(60);
     fill(255,255,255);
-    text("Time Left: " + seconds + "s", 1000, 400);
+    text("Tempo restante: " + seconds + "s", 1000, 1000);
     //Recebe a coordenada do servidor
     socket.on('recebeProblemas', problemas);
     circle = new Circle(Sor.coordenadasProva);

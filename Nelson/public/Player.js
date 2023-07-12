@@ -5,8 +5,8 @@ class Player{
         this.name = player.name;
         this.card=[];
         this.cardProva = null;
-        this.certos = [];
-        this.errados = [];
+        this.certos = null;
+        this.errados = null;
         this.ballcard=null;
     }
 

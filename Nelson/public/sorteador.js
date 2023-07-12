@@ -90,21 +90,46 @@ class Sorteador {
     }
     //desenha os players no ecra
     DesenhaPlayers() {
-        for (var i = 0; i < this.players.length; i++) {
-            var x = 0;
-            var y;
-            if (i > 15) {
-                x = 230;
-                y = 550 + (i - 16) * 45
-            } else {
-                y = 550 + i * 45;
-            }
-            textSize(32);
-            fill(255, 255, 255);
-            //textFont(font);
-            text(this.players[i].name, 2025 + x, y);
+        let index = 0;
+        for (let player of this.players.values()) {
+          let x = 0;
+          let y;
+          if (index > 15) {
+            x = 230;
+            y = 550 + (index - 16) * 45;
+          } else {
+            y = 550 + index * 45;
+          }
+          textSize(32);
+          fill(255, 255, 255);
+          text(player.name, 2025 + x, y);
+          console.log('count certos = '+player.certos)
+          if(player.certos > 0)
+            text(player.certos.length, 2025 + x, y+10);
+          index++;
         }
-    }
+      }
+
+      //desenha os players no ecra
+    DesenhaPlayers(certos) {
+        let index = 0;
+        for (let player of this.players.values()) {
+          let x = 0;
+          let y;
+          if (index > 15) {
+            x = 230;
+            y = 550 + (index - 16) * 45;
+          } else {
+            y = 550 + index * 45;
+          }
+          textSize(32);
+          fill(255, 255, 255);
+          text(player.name, 2025 + x, y);
+          text(certos.get(player.id), 2025 + x + 400, y);
+          index++;
+        }
+      }
+      
 
 
 }

@@ -22,12 +22,14 @@ var tempo;
 var startTime;
 var problemasProva = null;
 var certos = [];
+var countCertos = 0;
 var errados = [];
 
 //Função para carregar a media
 function carregaMedia() {
   bgImg = loadImage("media/Background.png");
   Bingo = loadImage("media/Bingo.png");
+
 
   /*
     *
@@ -50,19 +52,17 @@ function carregaMedia() {
   Seguinte = loadImage("media/SeguinteButton.png");
   SeguinteActive = loadImage("media/SeguinteActiveButton.png");
 
+  Desafios = loadImage("media/DesafiosActive.png")
+  Tempo = loadImage("media/TempoActive.png")
+
   Info = loadImage("media/InfoButton.png");
   InfoJogador = loadImage("media/InfoJogador.png");
   InfoSorteador = loadImage("media/InfoShown.png");
 
   BingoTitulo = loadImage("media/BingoTitulo.png");
+  ProvaTitulo = loadImage("media/ProvaTitulo.png");
   Card = loadImage("media/Card.png");
-  CincoProblemas = loadImage("media/CincoProblemasButton.png")
-  CincoProblemasActive = loadImage("media/CincoProblemasActiveButton.png")
-  CincoProblemasSelected = loadImage("media/CincoProblemasSelectedButton.png")
 
-  DezSegundos = loadImage("media/DezSegundosButton.png")
-  DezSegundosActive = loadImage("media/DezSegundosActiveButton.png")
-  DezSegundosSelected = loadImage("media/DezSegundosSelectedButton.png")
 
   Logo = loadImage("media/LogoV1.png");
 }
@@ -81,6 +81,22 @@ function setup() {
   button.style('background-color', col);
   button.mousePressed(changeBG);
   button.hide();
+
+  problemasInput = createSelect();
+  problemasInput.position(1000, 500);
+  problemasInput.size(552, 52);
+  problemasInput.option("3 Problemas",3)
+  problemasInput.option("6 Problemas",6)
+  problemasInput.option("9 Problemas",9)
+  problemasInput.hide()
+
+  tempoInput = createSelect();
+  tempoInput.position(1000, 900);
+  tempoInput.size(552, 52);
+  tempoInput.option("1 minuto",60000)
+  tempoInput.option("2 minutos",120000)
+  tempoInput.option("5 minutos",300000)
+  tempoInput.hide()
 
   //Cria um novo sorteador
   Sor = new Sorteador();
@@ -262,7 +278,11 @@ function page2() {
 function page3() {
   background(bgImg);
   socket.on('ganhou', ganhouJogo);
-  image(BingoTitulo, 100, 100);
+  if(modo == 'bingo'){
+   	image(BingoTitulo, 100, 100);
+  }else{
+  	image(ProvaTitulo, 100, 100);
+  }
   image(Card, 100, 400);
   image(Card, 2000, 400);
   if (!gameStarted) {
@@ -356,19 +376,19 @@ function page4() {
     const currentTime = millis();
     const elapsedTime = currentTime - startTime;
     timeLeft = tempo - elapsedTime;
-    //alert(currentTime+' '+elapsedTime+' '+timeLeft+' '+tempo+' '+startTime)
+    //console.log(currentTime+' '+elapsedTime+' '+timeLeft+' '+tempo+' '+startTime)
     if (timeLeft <= 0) {
       // Time has ended, transition to page7
       scene = 7;
       return;
     } 
     background(bgImg);
-    image(BingoTitulo, 100, 100);
+    image(ProvaTitulo, 100, 100);
     image(Card, 100, 400);
 
     // Display the time remaining
     const seconds = Math.ceil(timeLeft / 1000);
-    console.log(seconds);
+    //console.log(seconds);
     textSize(60);
     fill(255,255,255);
     text("Tempo restante: " + seconds + "s", 1000, 1000);
@@ -413,42 +433,29 @@ function page4() {
 function page6() {
   background(bgImg);
   socket.on('ganhou', ganhouJogo);
-  image(BingoTitulo, 100, 100);
+  image(ProvaTitulo, 100, 100);
   image(Card, 100, 400);
   image(Card, 2000, 400);
-  image(CincoProblemas, 1000, 400);
-  image(DezSegundos, 1000, 600);
-  if (mouseX > 1000 && mouseX < 1668 && mouseY > 400 && mouseY < 452) {
-    image(CincoProblemasActive, 1000, 400);
-    if (mouseIsPressed) {
-      numProblemas = 5  
-      CincoProblemas = CincoProblemasSelected
-      //gameStarted = true;
-      //changeBG(); //alterar para receber parâmetros do professor
-    }
-  }
-  if (mouseX > 1000 && mouseX < 1668 && mouseY > 600 && mouseY < 652) {
-    image(DezSegundosActive, 1000, 600);
-    if (mouseIsPressed) {
-      tempo = 60000 //ms  
-      DezSegundos = DezSegundosSelected
-      //gameStarted = true;
-      //changeBG(); //alterar para receber parâmetros do professor
-    }
-  }
+  image(Desafios, 1000, 400);
+  
+  problemasInput.show()
+  
+
+  image(Tempo, 1000, 800);
+  tempoInput.show()
+
+  
 
   if (!gameStarted) {
     image(Comecar, 100, 325);
     if (mouseX > 100 && mouseX < 668 && mouseY > 325 && mouseY < 377) {
       image(ComecarActive, 100, 325);
       if(mouseIsPressed){
-        if (numProblemas != 0 && tempo != 0) {
-          gameStarted = true;
-          //startTime = millis();
-          changeBG(numProblemas, tempo);
-        } else {
-          alert("Deve selecionar primeiro o número de testes e o tempo.");
-        }
+        numProblemas = parseInt(problemasInput.value())
+        tempo = parseInt(tempoInput.value())
+        gameStarted = true;
+        //startTime = millis();
+        changeBG(numProblemas, tempo);
       }
       
     }
@@ -461,7 +468,14 @@ function page6() {
   //manda para o servidor a informação que ja existe sorteador
   socket.emit('sorteador', sorteador);
   //chama a função para Desenhar  os PLayers da Class sorteador
-  Sor.DesenhaPlayers();
+  var player_acertos = new Map()
+  for (let player of Sor.players.values()) {
+    socket.emit('getCertos',player.id);
+    socket.on('recebeAcertos',recebeAcertos)
+    player_acertos.set(player.id,countCertos)
+    
+  }
+  Sor.DesenhaPlayers(player_acertos);
   //chama a função para Desenhar as coordenadas da Class sorteador
   Sor.DesenhaCoordenadasProva();
 }
@@ -493,7 +507,8 @@ function changeBG(numProblemas, tempo){
   Sor.retiraCoordenadas(numProblemas);
   var infotempo = [];
   infotempo.push(tempo);
-  infotempo.push(millis())
+  startTime = millis()
+  infotempo.push(startTime)
   socket.emit('emitProblemas',Sor.coordenadasProva);
   socket.emit('emitTempo',infotempo);
 }
@@ -547,13 +562,7 @@ function desenhar() {
 //função para desenhar as coordenadas do cartao e a coordenada que saiu
 var clickedCoordinate = null;
 function desenharProva(coordenadas, circle) {
-  var currentPlayer;
-  for (var i = 0; i < Sor.players.length; i++) {
-    if (playerId == Sor.players[i].id) {
-      currentPlayer = Sor.players[i];
-    }
-    
-  }
+  
   if (p.card != null) {
     for (var i = 0; i < 5; i++) {
       fill(255);
@@ -584,7 +593,9 @@ function desenharProva(coordenadas, circle) {
                 alert("Student is correct for coordinate: " + clickedCoordinate);
                 for (var j = 0; j < p.card.length; j++) {
                   if(p.card[j] == clickedCoordinate){
-                    certos.push(angleClicked);
+                    certos.push(angleClicked)
+                    socket.emit('acerto',p.id)
+                    
                   }
                 }
               }else{
@@ -607,6 +618,9 @@ function desenharProva(coordenadas, circle) {
   }
 
 }
+function recebeAcertos(data){
+  countCertos = data
+}
 
 //função que recebe os Jogadores,Criar um novo array de "Player" e verificar que ja Existe esse player
 //pelo Id tambem remove o player do array se ele sair
@@ -625,8 +639,8 @@ function recebePlayers(data) {
 }
 //verificar que o Id do jogador Existe
 function playerExiste(playersServer) {
-  for (var i = 0; i < Sor.players.length; i++) {
-    if (Sor.players[i].id == playersServer.id) {
+  for (let player of Sor.players.values()) {
+    if (player.id === playersServer.id) {
       return true;
     }
   }
@@ -634,9 +648,9 @@ function playerExiste(playersServer) {
 }
 //se o Id do Jogador sair do servidor cria um novo array sem esse Jogador
 function removePlayer(playerId) {
-
-  Sor.players = Sor.players.filter(player => player.id !== playerId);
+  Sor.players.delete(playerId);
 }
+
 //Função que recebe a coordenada
 function numeroBall(data) {
   Sor.coordenada = data;

@@ -12,6 +12,7 @@ var problems = [];
 var sorteador=false;
 var modo;
 var tempos = [];
+var acertos = new Map()
 
 
 console.log("http://localhost:3000");
@@ -28,7 +29,21 @@ function newConnection(socket){
   function Name(data){
     //Cria um novo "Player" com os dados recebidos
     players.push(new Player(data.id,data.name));
+    acertos.set(data.id,0)
     console.log(players);
+  }
+
+  socket.on('acerto',recebeAcerto);
+  function recebeAcerto(data){
+    var a = acertos.get(data);
+    a++;
+    acertos.set(data,a);
+    console.log('acerto '+data,a)
+  }
+
+  socket.on('getCertos',getCertos);
+  function getCertos(data){
+    socket.emit('recebeAcertos',acertos.get(data));
   }
 
   socket.on('modo',mode);
@@ -62,7 +77,6 @@ function newConnection(socket){
     function tempo(data){
       tempos[0] = data[0]
       tempos[1] = data[1]
-
     }
 
     //recebe se alguem ganhou o jogo

@@ -8,6 +8,7 @@ class Player{
         this.certos = null;
         this.errados = null;
         this.ballcard=null;
+        this.professor = false;
     }
 
 
@@ -31,6 +32,59 @@ class Player{
         }
         
 
+    }
+
+    DesenhaTries(tries) {
+        textSize(32);
+        var index = 0;
+        var acertos = tries[this.id].certas
+        var erros = tries[this.id].erradas
+        var x = 700;
+        var y = 600;
+        text('ACERTOS', x, y);
+        var i =1;
+        for (let acerto of acertos) {
+          index = index+50;
+          text(i+' - '+acerto[0], x, y+index);
+          i++;
+        }
+        x = 950;
+        y = 600;
+        index = 0
+        var j = 1
+        text('ERROS', x, y);
+        for (let erro of erros) {
+            index = index+50;
+            text(j+' - '+erro[0], x, y+index);
+            j++;
+        }
+    }
+
+    DesenhaTriesFinal(tries) {
+        textSize(32);
+        var index = 0;
+        var acertos = tries[this.id].certas
+        var erros = tries[this.id].erradas
+        var x = 1600;
+        var y = 600;
+        fill(255);
+        text('Seus acertos', x, y);
+        var i =1;
+        for (let acerto of acertos) {
+          index = index+50;
+          text(i+' - '+acerto[0], x, y+index);
+          i++;
+        }
+        x = 1850;
+        y = 600;
+        index = 0
+        var j = 1
+        text('Seus erros', x, y);
+        for (let erro of erros) {
+            index = index+50;
+            text(j+' - '+erro[0], x, y+index);
+            j++;
+        }
     }
 
     removeCoordenada(coordenada){

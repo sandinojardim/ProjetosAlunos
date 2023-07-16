@@ -7,12 +7,13 @@ app.use(express.static('public'));
 var io = require('socket.io')(server);
 var Player = require("./Player");
 var players = [];
+const playersData = {};
 var numero;
 var problems = [];
 var sorteador=false;
 var modo;
 var tempos = [];
-var acertos = new Map()
+var tries = {}
 
 
 console.log("http://localhost:3000");
@@ -29,26 +30,47 @@ function newConnection(socket){
   function Name(data){
     //Cria um novo "Player" com os dados recebidos
     players.push(new Player(data.id,data.name));
-    acertos.set(data.id,0)
+    tries[data.id] = {
+      hits: 0,
+      misses: 0,
+      certas: [],
+      erradas: []
+    };
     console.log(players);
+    console.log(tries);
+    io.emit('recebeTries',tries)
   }
 
   socket.on('acerto',recebeAcerto);
-  function recebeAcerto(data){
-    var a = acertos.get(data);
+  function recebeAcerto(data,coord,idx){
+    var a = tries[data].hits;
     a++;
-    acertos.set(data,a);
-    console.log('acerto '+data,a)
+    tries[data].hits = a;
+    tries[data].certas.push([coord,idx]);
+    console.log(tries)
+    io.emit('recebeTries',tries)
   }
 
-  socket.on('getCertos',getCertos);
-  function getCertos(data){
-    socket.emit('recebeAcertos',acertos.get(data));
+  socket.on('erro',recebeErro);
+  function recebeErro(data,coord,idx){
+    var a = tries[data].misses;
+    a++;
+    tries[data].misses = a;
+    tries[data].erradas.push([coord,idx]);
+    io.emit('recebeTries',tries)
+  }
+
+
+
+  socket.on('getTries',getCertos);
+  function getCertos(){
+    io.emit('recebeTries', tries);
   }
 
   socket.on('modo',mode);
   function mode(data){
     modo = data;
+    io.emit('modoServer',modo);
   }
 
   //recebe se existe sorteador ou nao
@@ -103,11 +125,14 @@ function newConnection(socket){
       io.emit('sorteadorEstado',sorteador);
       io.emit('recebeBola',numero);
       io.emit('players',players);
+      io.emit('modoServer',modo);
     }else{
       io.emit('sorteadorEstado',sorteador);
       io.emit('recebeProblemas',problems)
+      io.emit('recebeTries',tries);
       io.emit('players',players);
-      io.emit('tempo',tempos)
+      io.emit('tempo',tempos);
+      io.emit('modoServer',modo);
     }
   }
 

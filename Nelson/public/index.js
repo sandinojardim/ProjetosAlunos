@@ -11,7 +11,8 @@ var carta = false;
 var circle;
 var sorteador = false;
 var first = true;
-var modo;
+var firstTime = true;
+var mode;
 var modoProva = false;
 var modoBingoButtonVisible = false;
 var modoProvaButtonVisible = false;
@@ -22,8 +23,11 @@ var tempo;
 var startTime;
 var problemasProva = null;
 var certos = [];
-var countCertos = 0;
+var certosT = []
+var tries = null;
 var errados = [];
+var erradosT = [];
+var professor = false;
 
 //Função para carregar a media
 function carregaMedia() {
@@ -136,6 +140,9 @@ function draw() {
     case 7:
       page7(); //tempo esgotado
       break;
+    case 9:
+      page9();
+      break;
     default:
       break;
   }
@@ -153,7 +160,7 @@ function selecionarModoBingo() {
   scene = 3;
   socket.on('players', recebePlayers);
   console.log('MODO BINGO');
-  mode = 'bingo';
+  mode = 'bingo_settings';
   socket.emit('modo',mode);
 }
 function selecionarModoProva() {
@@ -162,7 +169,7 @@ function selecionarModoProva() {
   scene = 6;
   socket.on('players', recebePlayers);
   console.log('MODO PROVA');
-  mode = 'prova';
+  mode = 'prova_settings';
   modoProva = true
   socket.emit('modo', mode);
 }
@@ -170,6 +177,7 @@ function selecionarModoProva() {
 function page1() {
   //recebe o estado do sorteador
   socket.on('sorteadorEstado', estadoSorteador);
+  socket.on('modoServer',updateModo);
   background(bgImg);
   image(Logo, width / 2 - 376, 200);
 
@@ -180,7 +188,8 @@ function page1() {
     *  botão de criar jogo e entrar no jogo.
     *  
   */
-  if (!sorteador) {
+  console.log(!sorteador || (mode != 'prova_settings' && mode != 'bingo_settings'));
+  if (!sorteador || (mode != 'prova_settings' && mode != 'bingo_settings')) {
     if (!modoProvaButtonVisible && !modoBingoButtonVisible) {
       image(Criar, width / 2 - 280, 550);
       if (mouseX > (width / 2 - 280) && mouseX < (width / 2 + 288) && mouseY > 550 && mouseY < 602) {
@@ -278,7 +287,7 @@ function page2() {
 function page3() {
   background(bgImg);
   socket.on('ganhou', ganhouJogo);
-  if(modo == 'bingo'){
+  if(mode == 'bingo' || mode == 'bingo_settings'){
    	image(BingoTitulo, 100, 100);
   }else{
   	image(ProvaTitulo, 100, 100);
@@ -291,7 +300,9 @@ function page3() {
       image(ComecarActive, 100, 325);
       if (mouseIsPressed) {
         gameStarted = true;
-        changeBG();
+        mode = 'bingo';
+        socket.emit('modo',mode);
+        changeBGBingo();
       }
     }
   }
@@ -299,16 +310,24 @@ function page3() {
   text("Valores Sorteados", 125, 465);
   text("Jogadores", 2025, 465);
   fill(255, 255, 255);
+  text("Ac", 2420, 465);
+  text("Er", 2475, 465);
   sorteador = true;
   //manda para o servidor a informação que ja existe sorteador
   socket.emit('sorteador', sorteador);
+  socket.emit('getTries');
+  socket.on('recebeTries',recebeTries)
   //chama a função para Desenhar  os PLayers da Class sorteador
-  Sor.DesenhaPlayers();
+  if(tries!=null){
+    Sor.DesenhaPlayers(tries);
+  }else{
+    Sor.DesenhaPlayersSorteador();
+  }
   //chama a função para Desenhar as coordenadas da Class sorteador
   Sor.DesenhaCoordenadas();
 }
 //função para retirar a coordenada e mandar para o servidor
-function changeBG() {
+function changeBGBingo() {
   if (first) {
     Sor.retiraCoordenada();
     //manda para o servidor a coordenada retirada
@@ -328,13 +347,13 @@ function changeBG() {
       playerName = "Ninguem";
       contem = 5;
     }
-  }, 5000);
+  }, 30000);
 }
 //pagina do jogador
 function page4() {
   
   //Cria um novo Circulo
-  if(modo == 'bingo'){
+  if(mode == 'bingo'){
     //console.log(modo)
     circle = new Circle(Sor.coordenadas);
     //Recebe a coordenada do servidor
@@ -345,18 +364,36 @@ function page4() {
     image(BingoTitulo, 100, 100);
     image(Card, 100, 400);
     //chama a função para criar o cartao
-    for (var i = 0; i < Sor.players.length; i++) {
-      if (playerId == Sor.players[i].id && carta == false) {
-        p = Sor.players[i];
-        p.CriarCard(Sor.coordenadas);
-        carta = true;
+    if (Sor.coordenadasSorteio != null) {
+      p = Sor.players.get(playerId);
+      if(p.card.length == 0){
+        p.CriarCard(Sor.coordenadasSorteio);
+        socket.emit('getTries');
+        socket.on('recebeTries',recebeTries)
+      }
+    }
+    if(tries != null){
+      p.DesenhaTries(tries)
+      if(tries[playerId].hits == p.card.length){
+        socket.emit('emiteGanhou', playerName);
+        contem = 5;
+        scene = 5;
+        //socket.emit('disconnect');
+      }
+      if(tries[playerId].hits + tries[playerId].misses == 5){ //se forem cinco os números sorteados
+        scene = 7;
+        //socket.emit('disconnect');
       }
     }
 
     //desenha o cartao e as coordenadas dele
     desenhar();
     //desenha o circulo trigonometrico
-    circle.DesenhaCircle();
+    if(tries != null){
+      circle.DesenhaCircle(tries[playerId].certas, tries[playerId].erradas);
+    }else{
+      circle.DesenhaCircleBingo();
+    }
     //desenha as linhas
     for (var i = 0; i < lines.length; i++) {
       if (lines[i] != null) {
@@ -367,14 +404,20 @@ function page4() {
       }
 
     }
-    if(mouseIsPressed){
-      mouseClicked()
-      scene=4
-    }
+    // if(mouseIsPressed){
+    //   mouseClicked()
+    //   scene=4
+    // }
   }else{//Modo Prova
     socket.on('tempo',recebeTempos);
-    const currentTime = millis();
-    const elapsedTime = currentTime - startTime;
+    var currentTime;
+    if(firstTime){
+      currentTime = startTime;
+      firstTime = false;
+    }else{
+      currentTime = millis()
+    }
+    var elapsedTime = currentTime - startTime;
     timeLeft = tempo - elapsedTime;
     //console.log(currentTime+' '+elapsedTime+' '+timeLeft+' '+tempo+' '+startTime)
     if (timeLeft <= 0) {
@@ -387,11 +430,11 @@ function page4() {
     image(Card, 100, 400);
 
     // Display the time remaining
-    const seconds = Math.ceil(timeLeft / 1000);
+    var seconds = Math.ceil(timeLeft / 1000);
     //console.log(seconds);
-    textSize(60);
+    textSize(50);
     fill(255,255,255);
-    text("Tempo restante: " + seconds + "s", 1000, 1000);
+    text("Tempo restante: " + seconds + "s", 700, 1000);
     //Recebe a coordenada do servidor
     socket.on('recebeProblemas', problemas);
     circle = new Circle(Sor.coordenadasProva);
@@ -404,15 +447,34 @@ function page4() {
         p = Sor.players.get(playerId);
         if(p.card.length == 0){
           p.CriarCardProva(problemasProva);
+          socket.emit('getTries');
+          socket.on('recebeTries',recebeTries)
         }
-
       }
     //}
     
     //desenha o cartao e as coordenadas dele
+    //alert(tries)
+    if(tries != null){
+      p.DesenhaTries(tries)
+      if(tries[playerId].hits == Sor.coordenadasProva.length){
+        socket.emit('emiteGanhou', playerName);
+        contem = 5;
+        scene = 5;
+        //socket.emit('disconnect');
+      }
+      if(tries[playerId].hits + tries[playerId].misses == Sor.coordenadasProva.length){
+        scene = 7;
+        //socket.emit('disconnect');
+      }
+    }
     desenharProva(Sor.coordenadasProva, circle);
     //desenha o circulo trigonometrico
-    circle.DesenhaCircle(certos, errados);
+    if(tries != null){
+      circle.DesenhaCircle(tries[playerId].certas, tries[playerId].erradas);
+    }else{
+      circle.DesenhaCircleE();
+    }
     //desenha as linhas
     for (var i = 0; i < lines.length; i++) {
       if (lines[i] != null) {
@@ -454,6 +516,9 @@ function page6() {
         numProblemas = parseInt(problemasInput.value())
         tempo = parseInt(tempoInput.value())
         gameStarted = true;
+        mode = 'prova';
+
+        socket.emit('modo',mode);
         //startTime = millis();
         changeBG(numProblemas, tempo);
       }
@@ -463,19 +528,23 @@ function page6() {
   textSize(48);
   text("Valores Sorteados", 125, 465);
   text("Jogadores", 2025, 465);
+  textSize(30);
+  text("Ac", 2420, 465);
+  text("Er", 2475, 465);
   fill(255, 255, 255);
   sorteador = true;
   //manda para o servidor a informação que ja existe sorteador
   socket.emit('sorteador', sorteador);
   //chama a função para Desenhar  os PLayers da Class sorteador
-  var player_acertos = new Map()
-  for (let player of Sor.players.values()) {
-    socket.emit('getCertos',player.id);
-    socket.on('recebeAcertos',recebeAcertos)
-    player_acertos.set(player.id,countCertos)
+  //var player_acertos = new Map()
+  //for (let player of Sor.players.values()) {
+    socket.emit('getTries');
+    socket.on('recebeTries',recebeTries)
+    //player_acertos = tries
     
-  }
-  Sor.DesenhaPlayers(player_acertos);
+  //}
+  Sor.DesenhaPlayers(tries);
+  
   //chama a função para Desenhar as coordenadas da Class sorteador
   Sor.DesenhaCoordenadasProva();
 }
@@ -500,7 +569,7 @@ function changeBG() {
       playerName = "Ninguem";
       contem = 5;
     }
-  }, 5000);
+  }, 30000);
 }
 
 function changeBG(numProblemas, tempo){
@@ -513,40 +582,16 @@ function changeBG(numProblemas, tempo){
   socket.emit('emitTempo',infotempo);
 }
 
-/*function changeBG(numProblemas, tempo) {
-  if (first) {
-    Sor.retiraCoordenada();
-    socket.emit('emitBola', Sor.coordenada);
-    if (Sor.coordenada == null) {
-      playerName = "Ninguem";
-      contem = 5;
-    }
-  }
 
-  var counter = 1;
-  var intervalID = setInterval(() => {
-    if (counter >= numProblemas) {
-      clearInterval(intervalID);
-      contem = 5;
-      return;
-    }
-
-    Sor.retiraCoordenada();
-    socket.emit('emitBola', Sor.coordenada);
-    if (Sor.coordenada == null) {
-      playerName = "Ninguem";
-      contem = 5;
-    }
-
-    counter++;
-  }, tempo);
-} //função para versão bingo/prova */
-
+var clickedCoordinate = null;
 //função para desenhar as coordenadas do cartao e a coordenada que saiu
 function desenhar() {
   if (p.card != null) {
     for (var i = 0; i < 5; i++) {
-      fill(255);
+      if(Sor.coordenada != null && p.card[i] == Sor.coordenada)
+        fill(255,255,0);
+      else
+        fill(255);
       textSize(32);
       text(p.card[i], 125, 550 + i * 45);
     }
@@ -556,15 +601,92 @@ function desenhar() {
     fill(255);
     textSize(32);
     text(Sor.coordenada, width / 2, 550);
+    clickedCoordinate = Sor.coordenada;
   }
-}
+  console.log(clickedCoordinate);
+  if (clickedCoordinate != null){
+    var angleClicked = Sor.coordenadaToAngle.get(clickedCoordinate)
+    // Check if a mouse click occurred within the circle area
+      if (mouseIsPressed && (
+        (mouseX > width - 700 && mouseX < width - 300 && mouseY > height / 2 - 350 && mouseY < height / 2 + 350) ||
+        (mouseX > width - 500 && mouseX < width - 500 + 30 && mouseY > height / 2 - 250 && mouseY < height / 2 + 250)
+      )) {
+        // Calculate the angle of the clicked position
+        let angle = degrees(atan2(mouseY - height / 2, mouseX - (width - 500)));
+        if (angle < 0) {
+          angle += 360; // Adjust negative angles to positive values
+        }
+        if(angle != 0)
+          angle = 360 - angle; // Reverse the direction of the angle
+        //alert(angle)
+
+        // Check if the clicked position matches any of the coordinates
+        
+          mouseIsPressed = false
+          if(Sor.coordenadas.includes(clickedCoordinate) && p.card.includes(clickedCoordinate)){
+            if (round(angle) >= angleClicked - 2 && round(angle) <= angleClicked + 2) { //tolerance
+              // Student is correct
+              //alert("Student is correct for coordinate: " + clickedCoordinate);
+              for (var j = 0; j < p.card.length; j++) {
+                if(p.card[j] == clickedCoordinate){
+                  certos.push(angleClicked)
+                  socket.emit('acerto',p.id,p.card[j],(certos.length+certosT.length))
+                  p.card.splice(j,1);
+                  break;
+                  
+                }
+              }
+            }else{
+              for (var j = 0; j < p.card.length; j++) {
+                if(p.card[j] == clickedCoordinate){
+                  errados.push(angleClicked);
+                  socket.emit('erro',p.id,p.card[j],(errados.length+erradosT.length)) //Reminder: incluir index de cada erro
+                  p.card.splice(j,1);
+                  break;
+                }
+              }
+            }
+          }else if(Sor.coordenadasT.includes(clickedCoordinate) && p.card.includes(clickedCoordinate)){
+            angle = tan(angle * Math.PI / 180)
+            tanAngle = tan(angleClicked * Math.PI / 180)
+            if (angle >= tanAngle - 0.5 && angle <= tanAngle + 0.5) { //tolerance
+              // Student is correct
+              //alert("Student is correct for coordinate: " + clickedCoordinate);
+              for (var j = 0; j < p.card.length; j++) {
+                if(p.card[j] == clickedCoordinate){
+                  certosT.push(angleClicked)
+                  socket.emit('acerto',p.id,p.card[j],(certos.length+certosT.length))
+                  p.card.splice(j,1);
+                  break;
+                  
+                }
+              }
+            }else{
+              for (var j = 0; j < p.card.length; j++) {
+                if(p.card[j] == clickedCoordinate){
+                  erradosT.push(angleClicked);
+                  socket.emit('erro',p.id,p.card[j],(errados.length+erradosT.length))
+                  p.card.splice(j,1);
+                  break;
+                }
+              }
+            }
+
+          }
+        
+      }
+      //fill(255);
+      //textSize(32);
+      //text(clickedCoordinate, width / 2, 550);
+    }
+  }
 
 //função para desenhar as coordenadas do cartao e a coordenada que saiu
-var clickedCoordinate = null;
+
 function desenharProva(coordenadas, circle) {
   
   if (p.card != null) {
-    for (var i = 0; i < 5; i++) {
+    for (var i = 0; i < coordenadas.length; i++) {
       fill(255);
       textSize(32);
       text(p.card[i], 125, 550 + i * 45);
@@ -577,33 +699,71 @@ function desenharProva(coordenadas, circle) {
       if (clickedCoordinate != null){
         var angleClicked = Sor.coordenadaToAngle.get(clickedCoordinate)
         // Check if a mouse click occurred within the circle area
-          if (mouseIsPressed && mouseX > width - 700 && mouseX < width - 300 && mouseY > height / 2 - 350 && mouseY < height / 2 + 350) {
+          if (mouseIsPressed && (
+            (mouseX > width - 700 && mouseX < width - 300 && mouseY > height / 2 - 350 && mouseY < height / 2 + 350) ||
+            (mouseX > width - 500 && mouseX < width - 500 + 30 && mouseY > height / 2 - 250 && mouseY < height / 2 + 250)
+          )) {
             // Calculate the angle of the clicked position
             let angle = degrees(atan2(mouseY - height / 2, mouseX - (width - 500)));
             if (angle < 0) {
               angle += 360; // Adjust negative angles to positive values
             }
-            angle = 360 - angle; // Reverse the direction of the angle
+            if(angle != 0)
+              angle = 360 - angle; // Reverse the direction of the angle
+            //alert(angle)
 
             // Check if the clicked position matches any of the coordinates
             
               mouseIsPressed = false
-              if (round(angle) >= angleClicked - 2 && round(angle) <= angleClicked + 2) { //tolerance
-                // Student is correct
-                alert("Student is correct for coordinate: " + clickedCoordinate);
-                for (var j = 0; j < p.card.length; j++) {
-                  if(p.card[j] == clickedCoordinate){
-                    certos.push(angleClicked)
-                    socket.emit('acerto',p.id)
-                    
+              if(Sor.coordenadas.includes(clickedCoordinate)){
+                if (round(angle) >= angleClicked - 2 && round(angle) <= angleClicked + 2) { //tolerance
+                  // Student is correct
+                  alert("Student is correct for coordinate: " + clickedCoordinate);
+                  for (var j = 0; j < p.card.length; j++) {
+                    if(p.card[j] == clickedCoordinate){
+                      certos.push(angleClicked)
+                      socket.emit('acerto',p.id,p.card[j],(certos.length+certosT.length))
+                      p.card.splice(j,1);
+                      break;
+                      
+                    }
+                  }
+                }else{
+                  for (var j = 0; j < p.card.length; j++) {
+                    if(p.card[j] == clickedCoordinate){
+                      errados.push(angleClicked);
+                      socket.emit('erro',p.id,p.card[j],(errados.length+erradosT.length)) //Reminder: incluir index de cada erro
+                      p.card.splice(j,1);
+                      break;
+                    }
                   }
                 }
-              }else{
-                for (var j = 0; j < p.card.length; j++) {
-                  if(p.card[j] == clickedCoordinate){
-                    errados.push(angleClicked);
+              }else if(Sor.coordenadasT.includes(clickedCoordinate)){
+                angle = tan(angle * Math.PI / 180)
+                tanAngle = tan(angleClicked * Math.PI / 180)
+                if (angle >= tanAngle - 0.5 && angle <= tanAngle + 0.5) { //tolerance
+                  // Student is correct
+                  alert("Student is correct for coordinate: " + clickedCoordinate);
+                  for (var j = 0; j < p.card.length; j++) {
+                    if(p.card[j] == clickedCoordinate){
+                      certosT.push(angleClicked)
+                      socket.emit('acerto',p.id,p.card[j],(certos.length+certosT.length))
+                      p.card.splice(j,1);
+                      break;
+                      
+                    }
+                  }
+                }else{
+                  for (var j = 0; j < p.card.length; j++) {
+                    if(p.card[j] == clickedCoordinate){
+                      erradosT.push(angleClicked);
+                      socket.emit('erro',p.id,p.card[j],(errados.length+erradosT.length))
+                      p.card.splice(j,1);
+                      break;
+                    }
                   }
                 }
+
               }
             
           }
@@ -618,8 +778,112 @@ function desenharProva(coordenadas, circle) {
   }
 
 }
-function recebeAcertos(data){
-  countCertos = data
+
+function desenharBingo(coordenadas,current) {
+  
+  if (p.card != null) {
+    for (var i = 0; i < coordenadas.length; i++) {
+      fill(255);
+      textSize(32);
+      text(p.card[i], 125, 550 + i * 45);
+
+      if (mouseIsPressed && mouseX > 125 && mouseX < 225 && mouseY > 550 + i * 45 - 32 && mouseY < 550 + i * 45) {
+        clickedCoordinate = p.card[i]; // Store the clicked coordinate
+        mouseIsPressed = false
+        // You can perform further actions with the clicked coordinate here
+      }
+      if (current != null){
+        var angleClicked = Sor.coordenadaToAngle.get(current)
+        // Check if a mouse click occurred within the circle area
+          if (mouseIsPressed && (
+            (mouseX > width - 700 && mouseX < width - 300 && mouseY > height / 2 - 350 && mouseY < height / 2 + 350) ||
+            (mouseX > width - 500 && mouseX < width - 500 + 30 && mouseY > height / 2 - 250 && mouseY < height / 2 + 250)
+          )) {
+            // Calculate the angle of the clicked position
+            let angle = degrees(atan2(mouseY - height / 2, mouseX - (width - 500)));
+            if (angle < 0) {
+              angle += 360; // Adjust negative angles to positive values
+            }
+            if(angle != 0)
+              angle = 360 - angle; // Reverse the direction of the angle
+            //alert(angle)
+
+            // Check if the clicked position matches any of the coordinates
+            
+              mouseIsPressed = false
+              if(Sor.coordenadas.includes(current)){
+                if (round(angle) >= angleClicked - 2 && round(angle) <= angleClicked + 2) { //tolerance
+                  // Student is correct
+                  alert("Student is correct for coordinate: " + current);
+                  for (var j = 0; j < p.card.length; j++) {
+                    if(p.card[j] == current){
+                      certos.push(angleClicked)
+                      socket.emit('acerto',p.id,p.card[j],(certos.length+certosT.length))
+                      p.card.splice(j,1);
+                      break;
+                      
+                    }
+                  }
+                }else{
+                  for (var j = 0; j < p.card.length; j++) {
+                    if(p.card[j] == current){
+                      errados.push(angleClicked);
+                      socket.emit('erro',p.id,p.card[j],(errados.length+erradosT.length)) //Reminder: incluir index de cada erro
+                      p.card.splice(j,1);
+                      break;
+                    }
+                  }
+                }
+              }else if(Sor.coordenadasT.includes(current)){
+                angle = tan(angle * Math.PI / 180)
+                tanAngle = tan(angleClicked * Math.PI / 180)
+                if (angle >= tanAngle - 0.5 && angle <= tanAngle + 0.5) { //tolerance
+                  // Student is correct
+                  alert("Student is correct for coordinate: " + current);
+                  for (var j = 0; j < p.card.length; j++) {
+                    if(p.card[j] == current){
+                      certosT.push(angleClicked)
+                      socket.emit('acerto',p.id,p.card[j],(certos.length+certosT.length))
+                      p.card.splice(j,1);
+                      break;
+                      
+                    }
+                  }
+                }else{
+                  for (var j = 0; j < p.card.length; j++) {
+                    if(p.card[j] == current){
+                      erradosT.push(angleClicked);
+                      socket.emit('erro',p.id,p.card[j],(errados.length+erradosT.length))
+                      p.card.splice(j,1);
+                      break;
+                    }
+                  }
+                }
+
+              }
+            
+          }
+          //fill(255);
+          //textSize(32);
+          //text(clickedCoordinate, width / 2, 550);
+        }
+      }
+
+      
+      
+  }
+
+}
+
+
+socket.on('modoServer',updateModo);
+function updateModo(data){
+  mode = data;
+}
+
+function recebeTries(data){
+  tries = data
+  //console.log(tries);
 }
 
 //função que recebe os Jogadores,Criar um novo array de "Player" e verificar que ja Existe esse player
@@ -664,6 +928,7 @@ function problemas(data){
 function recebeTempos(data){
   tempo = data[0];
   startTime = data[1];
+  //alert(tempo+' - '+startTime);
 
 }
 //Função que recebe se alguem ganhou o Jogo
@@ -682,11 +947,19 @@ function Nome() {
   // manda para o servidor o nome e o id do Jogador
   socket.emit('playerName', data);
   usernameInput.hide();
-  scene = 4;
+  socket.on('mode',updateModo);
+  if(mode == 'prova_settings' || mode == 'bingo_settings'){
+    scene = 9;
+  }else{
+    scene = 4;
+  }
 }
 //recebe o Id quem entrou no servidor
 function pID(data) {
   playerId = data;
+  if(Sor.players.size == 0){
+    professor = true;
+  }
 }
 //função para o "MouseClicked" que verifica se a coordenada esta no seu cartao
 //E se clicou no sitio certo no circulo trigonometrico adiciona um linha no local que clicou
@@ -738,21 +1011,40 @@ function mouseClicked() {
 //pagina do Vencedor
 function page5() {
   background(bgImg);
-  image(circulo, width / 2 - 500, 50, 958, 840);
+  //image(circulo, width / 2 - 500, 50, 958, 840);
   textSize(100);
   fill(26, 34, 87);
   stroke(0);
   text("Vencedor", width / 2 - 200, 200);
   text(playerName + " Ganhou", width / 2 - 400, 500);
   button.hide();
+  problemasInput.hide()
+  tempoInput.hide()
 }
 function page7() {
   background(bgImg);
-  image(circulo, width / 2 - 500, 50, 958, 840);
+  //image(circulo, width / 2 - 500, 50, 958, 840);
   textSize(100);
   fill(26, 34, 87);
   stroke(0);
-  text("Tempo esgotado", width / 2 - 200, 200);
+  text("Resultado Final", width / 2 - 200, 200);
+  image(Card, 1000, 400);
+  Sor.DesenhaPlayersFinal(tries);
+  circle.DesenhaCircle(tries[playerId].certas, tries[playerId].erradas);
+  p = Sor.players.get(playerId);
+  p.DesenhaTriesFinal(tries);
   //text(playerName + " Ganhou", width / 2 - 400, 500);
   button.hide();
+}
+function page9(){
+  textSize(100);
+  fill(26, 34, 87);
+  stroke(0);
+  text("Aguarde o professor iniciar", width / 2 - 200, 200);
+  socket.on('modoServer',updateModo);
+  if(mode == 'prova_settings' || mode == 'bingo_settings'){
+    scene = 9;
+  }else{
+    scene = 4;
+  }
 }

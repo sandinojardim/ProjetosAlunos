@@ -1,16 +1,24 @@
 class Sorteador {
     constructor() {
-        this.coordenadas = [
+        this.coordenadasSorteio = [
             "(1,0)", "(√3/2,1/2)", "(√2/2,√2/2)",
             "(1/2,√3/2)", "(0,1)", "(-1/2,√3/2)",
             "(-√2/2,√2/2)", "(-√3/2,1/2)", "(-1,0)",
             "(-√3/2,-1/2)", "(-√2/2,-√2/2)", "(-1/2,-√3/2)",
             "(0,-1)", "(1/2,-√3/2,)", "(√2/2,-√2/2)",
-            "(√3/2,-1/2)", "(0,√3/3)", "(0,1*)",
-            "(0,√3)", "(0,-√3)", "(0,-1*)", "(0,-√3/3)"];
-
-        this.coordenadasretiradas = [];
-        this.coordenadasProva = [];
+            "(√3/2,-1/2)", "(0,√3/3)", "(0,1*)","(0,√3)", 
+            "(0,-√3)", "(0,-1*)", "(0,-√3/3)"];
+            this.coordenadas = [
+                "(1,0)", "(√3/2,1/2)", "(√2/2,√2/2)",
+                "(1/2,√3/2)", "(0,1)", "(-1/2,√3/2)",
+                "(-√2/2,√2/2)", "(-√3/2,1/2)", "(-1,0)",
+                "(-√3/2,-1/2)", "(-√2/2,-√2/2)", "(-1/2,-√3/2)",
+                "(0,-1)", "(1/2,-√3/2,)", "(√2/2,-√2/2)",
+                "(√3/2,-1/2)"];
+            this.coordenadasT = [   "(0,√3/3)", "(0,1*)","(0,√3)", 
+                                    "(0,-√3)", "(0,-1*)", "(0,-√3/3)"]
+                this.coordenadasretiradas = [];
+                this.coordenadasProva = [];
         this.players = new Map();
         this.coordenada = null;
         this.retirarCoordernada = false;
@@ -32,23 +40,29 @@ class Sorteador {
         this.coordenadaToAngle.set("(1/2,-√3/2,)", 300);
         this.coordenadaToAngle.set("(√2/2,-√2/2)", 315);
         this.coordenadaToAngle.set("(√3/2,-1/2)", 330);
+        this.coordenadaToAngle.set("(0,√3/3)", 30);
+        this.coordenadaToAngle.set("(0,1*)", 45);
+        this.coordenadaToAngle.set("(0,√3)", 60);
+        this.coordenadaToAngle.set("(0,-√3)", 300);
+        this.coordenadaToAngle.set("(0,-1*)", 315);
+        this.coordenadaToAngle.set("(0,-√3/3)", 330);
 
     }
     //função que retirar uma coordenada do array de coordenadas
     retiraCoordenada() {
-        this.coordenada = random(this.coordenadas);
+        this.coordenada = random(this.coordenadasSorteio);
         this.coordenadasretiradas.push(this.coordenada);
-        for (var i = 0; i < this.coordenadas.length; i++) {
-            if (this.coordenadas[i] == this.coordenada) {
-                this.coordenadas.splice(i, 1);
+        for (var i = 0; i < this.coordenadasSorteio.length; i++) {
+            if (this.coordenadasSorteio[i] == this.coordenada) {
+                this.coordenadasSorteio.splice(i, 1);
             }
         }
     }
     retiraCoordenadas(numProblemas){
         while (this.coordenadasProva.length < numProblemas){
-            let randomCoordinate = random(this.coordenadas);
+            let randomCoordinate = random(this.coordenadasSorteio);
             this.coordenadasProva.push(randomCoordinate);
-            this.coordenadas = this.coordenadas.filter(coordinate => coordinate !== randomCoordinate);
+            this.coordenadasSorteio = this.coordenadasSorteio.filter(coordinate => coordinate !== randomCoordinate);
         }
     }
     
@@ -89,7 +103,7 @@ class Sorteador {
         }
     }
     //desenha os players no ecra
-    DesenhaPlayers() {
+    DesenhaPlayersSorteador() {
         let index = 0;
         for (let player of this.players.values()) {
           let x = 0;
@@ -103,7 +117,7 @@ class Sorteador {
           textSize(32);
           fill(255, 255, 255);
           text(player.name, 2025 + x, y);
-          console.log('count certos = '+player.certos)
+          //console.log('count certos = '+player.certos)
           if(player.certos > 0)
             text(player.certos.length, 2025 + x, y+10);
           index++;
@@ -111,7 +125,7 @@ class Sorteador {
       }
 
       //desenha os players no ecra
-    DesenhaPlayers(certos) {
+    DesenhaPlayers(tries) {
         let index = 0;
         for (let player of this.players.values()) {
           let x = 0;
@@ -125,11 +139,36 @@ class Sorteador {
           textSize(32);
           fill(255, 255, 255);
           text(player.name, 2025 + x, y);
-          text(certos.get(player.id), 2025 + x + 400, y);
+          if(tries != null)
+            text(tries[player.id].hits, 2025 + x + 400, y);
+            text(tries[player.id].misses, 2025 + x + 450, y);
           index++;
         }
-      }
-      
+    }
+    
+    DesenhaPlayersFinal(tries) {
+        let index = 0;
+        for (let player of this.players.values()) {
+          let x = 0;
+          let y;
+          if (index > 15) {
+            x = 230;
+            y = 550 + (index - 16) * 45;
+          } else {
+            y = 550 + index * 45;
+          }
+          textSize(32);
+          fill(255, 255, 255);
+          text('Nome', 1025 + x, 500);
+          text('Ac', 1025 + x + 400, 500);
+          text('Er', 1025 + x + 450, 500);
+          text(player.name, 1025 + x, y);
+          if(tries != null)
+            text(tries[player.id].hits, 1025 + x + 400, y);
+            text(tries[player.id].misses, 1025 + x + 450, y);
+          index++;
+        }
+    }
 
 
 }
